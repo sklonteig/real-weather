@@ -19,6 +19,7 @@ enum WeatherModels {
         WeatherModelSource(queryName: "ecmwf_ifs025", displayName: "ECMWF"),
         WeatherModelSource(queryName: "icon_seamless", displayName: "ICON"),
         WeatherModelSource(queryName: "ukmo_seamless", displayName: "UKMO"),
+        WeatherModelSource(queryName: "metno_seamless", displayName: "MET Norway"),
     ]
 
     static var queryValue: String {
