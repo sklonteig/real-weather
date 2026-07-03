@@ -90,6 +90,25 @@ enum WeatherService {
 
         let current = CurrentWeather(temperature: average(currentTemps), weatherCode: mode(currentCodes))
 
+        var hourlyByDay: [String: [HourlyForecast]] = [:]
+        for (index, hourString) in hourlyTimes.enumerated() {
+            guard let date = localTimeFormatter.date(from: hourString) else { continue }
+
+            let temps = modelNames.compactMap { (hourly["temperature_2m_\($0)"] as? [Double])?[safe: index] }
+            let codes = modelNames
+                .compactMap { (hourly["weather_code_\($0)"] as? [Double])?[safe: index] }
+                .map(Int.init)
+
+            guard !temps.isEmpty, !codes.isEmpty else { continue }
+
+            let dayKey = String(hourString.prefix(10))
+            hourlyByDay[dayKey, default: []].append(HourlyForecast(
+                date: date,
+                temperature: average(temps),
+                weatherCode: mode(codes)
+            ))
+        }
+
         var dailyForecasts: [DailyForecast] = []
         for (index, dayString) in dailyTimes.enumerated() {
             guard let date = localDayFormatter.date(from: dayString) else { continue }
@@ -106,12 +125,16 @@ enum WeatherService {
                 date: date,
                 highTemperature: average(highs),
                 lowTemperature: average(lows),
-                weatherCode: mode(codes)
+                weatherCode: mode(codes),
+                hourly: index < hourlyDayWindow ? (hourlyByDay[dayString] ?? []) : []
             ))
         }
 
         return WeatherReport(current: current, daily: dailyForecasts)
     }
+
+    /// Number of leading days (today + following) for which we expose an hour-by-hour breakdown.
+    private static let hourlyDayWindow = 3
 
     private static func closestIndex(to date: Date, in localTimes: [String], using formatter: DateFormatter) -> Int {
         var bestIndex = 0

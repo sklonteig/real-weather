@@ -36,12 +36,21 @@ struct CurrentWeather {
     let weatherCode: Int
 }
 
+struct HourlyForecast: Identifiable, Equatable {
+    let id = UUID()
+    let date: Date
+    let temperature: Double
+    let weatherCode: Int
+}
+
 struct DailyForecast: Identifiable, Equatable {
     let id = UUID()
     let date: Date
     let highTemperature: Double
     let lowTemperature: Double
     let weatherCode: Int
+    /// Hour-by-hour breakdown for this day; empty when not requested (e.g. days beyond the near-term window).
+    let hourly: [HourlyForecast]
 }
 
 struct WeatherReport {
