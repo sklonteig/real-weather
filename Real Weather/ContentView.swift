@@ -5,17 +5,99 @@
 //  Created by SveinKlonteig on 03/07/2026.
 //
 
+
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var locationManager = LocationManager()
+    @StateObject private var weatherViewModel = WeatherViewModel()
+
+    private struct Coordinate: Equatable {
+        let latitude: Double
+        let longitude: Double
+    }
+
+    private var coordinate: Coordinate? {
+        guard let lat = locationManager.latitude, let lon = locationManager.longitude else { return nil }
+        return Coordinate(latitude: lat, longitude: lon)
+    }
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        ScrollView {
+            VStack(spacing: 20) {
+                Text("Weather Average")
+                    .font(.largeTitle)
+                    .bold()
+
+                if coordinate != nil {
+                    if weatherViewModel.isLoading {
+                        ProgressView("Averaging forecasts...")
+                    } else if let error = weatherViewModel.errorMessage {
+                        Text(error)
+                            .foregroundColor(.red)
+                            .multilineTextAlignment(.center)
+                    } else if let current = weatherViewModel.current {
+                        currentWeatherView(current)
+                        if !weatherViewModel.daily.isEmpty {
+                            dailyForecastView(weatherViewModel.daily)
+                        }
+                    }
+                } else if let error = locationManager.errorMessage {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
+                } else {
+                    ProgressView("Getting your location...")
+                }
+
+                Button("Retry") {
+                    locationManager.requestLocation()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding()
         }
-        .padding()
+        .onAppear {
+            locationManager.requestLocation()
+        }
+        .task(id: coordinate) {
+            guard let coordinate else { return }
+            await weatherViewModel.loadWeather(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        }
+    }
+
+    private func currentWeatherView(_ current: CurrentWeather) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: WeatherCode.symbolName(for: current.weatherCode))
+                .font(.system(size: 56))
+                .symbolRenderingMode(.multicolor)
+            Text("\(current.temperature, specifier: "%.1f")°C")
+                .font(.system(size: 44, weight: .semibold))
+            Text(WeatherCode.description(for: current.weatherCode))
+                .foregroundColor(.secondary)
+            Text("Averaged across \(WeatherModels.displayNamesJoined)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private func dailyForecastView(_ days: [DailyForecast]) -> some View {
+        VStack(spacing: 12) {
+            ForEach(days) { day in
+                HStack {
+                    Text(day.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
+                        .frame(width: 90, alignment: .leading)
+                    Image(systemName: WeatherCode.symbolName(for: day.weatherCode))
+                        .symbolRenderingMode(.multicolor)
+                    Spacer()
+                    Text("\(day.lowTemperature, specifier: "%.0f")°")
+                        .foregroundColor(.secondary)
+                    Text("\(day.highTemperature, specifier: "%.0f")°")
+                        .fontWeight(.semibold)
+                }
+                Divider()
+            }
+        }
     }
 }
 
